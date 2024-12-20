@@ -224,7 +224,3 @@ print(resp.json())
 resp = primp.get("https://httpbin.org/anything", impersonate="chrome_131")
 print(r.text)
 ```
-
-### II. AsyncClient
-
-TODO
