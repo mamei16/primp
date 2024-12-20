@@ -12,7 +12,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pythonize::depythonize;
 use rquest::{
-    header::{HeaderValue, COOKIE},
+    header::{HeaderMap, HeaderName, HeaderValue, COOKIE},
     multipart,
     redirect::Policy,
     tls::Impersonate,
@@ -20,6 +20,9 @@ use rquest::{
 };
 use serde_json::Value;
 use tokio::runtime::{self, Runtime};
+
+mod impersonate;
+use impersonate::{get_chaos_impersonate_settings, get_random_element, IMPERSONATES};
 
 mod response;
 use response::Response;
@@ -133,10 +136,22 @@ impl Client {
         let mut client_builder = rquest::Client::builder();
 
         // Impersonate
-        if let Some(impersonation_type) = impersonate {
-            let impersonation = Impersonate::from_str(impersonation_type)
-                .map_err(|err| PyValueError::new_err(err))?;
-            client_builder = client_builder.impersonate(impersonation);
+        match impersonate {
+            Some("chaos") => {
+                let chaos_impersonate_settings = get_chaos_impersonate_settings()?;
+                client_builder = client_builder.use_preconfigured_tls(chaos_impersonate_settings);
+            }
+            Some("random") => {
+                let impersonation = Impersonate::from_str(*get_random_element(IMPERSONATES))
+                    .expect("Error in impersonate");
+                client_builder = client_builder.impersonate(impersonation)
+            }
+            Some(impersonation) => {
+                let impersonation =
+                    Impersonate::from_str(impersonation).expect("Error in impersonate");
+                client_builder = client_builder.impersonate(impersonation)
+            }
+            None => {}
         }
 
         // Headers
